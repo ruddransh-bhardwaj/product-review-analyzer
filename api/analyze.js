@@ -4,103 +4,139 @@ export default async function handler(req, res) {
 
     if (!product) {
         return res.status(400).json({
-            error: "Product name required"
+            error: "Product required"
         });
     }
 
     try {
 
-        // Simulate different internet opinions
-        const opinionBank = [
-            "excellent camera and performance",
-            "battery life is poor",
-            "good value for money",
-            "premium build quality",
-            "overpriced compared to competitors",
-            "heating issues reported",
-            "fast and reliable",
-            "average experience overall",
-            "highly recommended by users",
-            "customer support complaints",
-            "smooth performance",
-            "durability concerns",
-            "great design and display",
-            "mixed online feedback"
-        ];
+        // DuckDuckGo Instant Answer API
+        const url =
+            `https://api.duckduckgo.com/?q=${encodeURIComponent(product + " reviews opinions")}&format=json&no_html=1`;
 
-        // Randomize reviews
-        const shuffled =
-            opinionBank.sort(() => 0.5 - Math.random());
+        const response = await fetch(url);
+        const data = await response.json();
 
-        const selected =
-            shuffled.slice(0, 5);
+        let collected = [];
 
-        const reviews =
-            selected.map(r =>
-                `${product}: ${r}`
-            );
+        // Collect related text
+        if (data.AbstractText) {
+            collected.push(data.AbstractText);
+        }
+
+        if (data.RelatedTopics) {
+
+            data.RelatedTopics.forEach(item => {
+
+                if (item.Text) {
+                    collected.push(item.Text);
+                }
+
+                if (item.Topics) {
+                    item.Topics.forEach(t => {
+                        if (t.Text) {
+                            collected.push(t.Text);
+                        }
+                    });
+                }
+
+            });
+
+        }
+
+        // Fallback
+        if (collected.length === 0) {
+
+            collected = [
+                `${product} has limited public review information online.`,
+                `${product} shows mixed public discussion.`
+            ];
+
+        }
+
+        collected = collected.slice(0,5);
 
         const positiveWords = [
-            "excellent",
             "good",
-            "premium",
-            "fast",
             "great",
+            "excellent",
+            "best",
+            "love",
+            "fast",
+            "quality",
+            "positive",
             "recommended",
             "smooth",
-            "reliable"
+            "impressive"
         ];
 
         const negativeWords = [
+            "bad",
             "poor",
-            "overpriced",
-            "issues",
-            "complaints",
-            "concerns",
-            "average",
-            "mixed"
+            "worst",
+            "issue",
+            "problem",
+            "negative",
+            "complaint",
+            "slow",
+            "damage",
+            "expensive"
         ];
 
         let score = 50;
 
-        reviews.forEach(review => {
+        collected.forEach(text => {
 
-            const lower = review.toLowerCase();
+            const lower = text.toLowerCase();
 
             positiveWords.forEach(word => {
                 if(lower.includes(word))
-                    score += 8;
+                    score += 6;
             });
 
             negativeWords.forEach(word => {
                 if(lower.includes(word))
-                    score -= 8;
+                    score -= 6;
             });
 
         });
 
-        score = Math.max(0, Math.min(100, score));
+        score =
+            Math.max(
+                0,
+                Math.min(100, score)
+            );
 
         let summary = "";
 
         if(score >= 70){
+
             summary =
-            `${product} shows largely positive sentiment online with several favorable opinions.`;
+            `${product} shows mostly positive online discussion and favorable public opinion.`;
+
         }
+
         else if(score >= 40){
+
             summary =
-            `${product} receives mixed feedback with both praise and criticism.`;
+            `${product} receives mixed online feedback with both positive and negative discussion.`;
+
         }
+
         else{
+
             summary =
-            `${product} has mostly negative sentiment and repeated complaints.`;
+            `${product} shows mostly negative sentiment based on available online discussion.`;
+
         }
 
         return res.status(200).json({
+
             product,
             score,
             summary,
-            reviews
+            reviews: collected
+
         });
 
     }
