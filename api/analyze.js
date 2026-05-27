@@ -10,87 +10,128 @@ export default async function handler(req, res) {
 
     try {
 
-        // Web search (Wikipedia snippets)
-        const wikiURL =
-            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(product + " review")}&format=json&origin=*`;
+        // DuckDuckGo JSON API
+        const url =
+            `https://api.duckduckgo.com/?q=${encodeURIComponent(product + " reviews pros cons")}&format=json&no_html=1`;
 
-        const wikiRes = await fetch(wikiURL);
-        const wikiData = await wikiRes.json();
+        const response =
+            await fetch(url);
+
+        const data =
+            await response.json();
 
         let snippets = [];
 
-        if (
-            wikiData.query &&
-            wikiData.query.search
-        ) {
-
-            snippets =
-                wikiData.query.search
-                .slice(0,5)
-                .map(item =>
-                    item.snippet.replace(/<[^>]*>/g,'')
-                );
+        if(data.AbstractText){
+            snippets.push(data.AbstractText);
         }
 
-        if(snippets.length===0){
+        if(data.RelatedTopics){
 
-            snippets = [
-                `${product} has limited review information online`
-            ];
-        }
+            data.RelatedTopics.forEach(item=>{
 
-        const combined =
-            snippets.join(". ");
-
-        // HuggingFace AI sentiment
-        const hfResponse =
-            await fetch(
-                "https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment",
-                {
-                    method:"POST",
-                    headers:{
-                        "Authorization":"Bearer YOUR_HF_TOKEN",
-                        "Content-Type":"application/json"
-                    },
-                    body:JSON.stringify({
-                        inputs:combined
-                    })
-                }
-            );
-
-        const hfData =
-            await hfResponse.json();
-
-        let score = 50;
-
-        if(Array.isArray(hfData)){
-
-            const sentiments =
-                hfData[0];
-
-            sentiments.forEach(s=>{
-
-                if(
-                    s.label.includes("POS")
-                ){
-                    score +=
-                        Math.round(
-                            s.score * 50
-                        );
+                if(item.Text){
+                    snippets.push(item.Text);
                 }
 
-                if(
-                    s.label.includes("NEG")
-                ){
-                    score -=
-                        Math.round(
-                            s.score * 50
-                        );
+                if(item.Topics){
+
+                    item.Topics.forEach(t=>{
+
+                        if(t.Text){
+                            snippets.push(t.Text);
+                        }
+
+                    });
+
                 }
 
             });
 
         }
+
+        snippets =
+            snippets
+            .filter(Boolean)
+            .slice(0,8);
+
+        if(snippets.length===0){
+
+            snippets = [
+                `${product} has limited online review information available.`,
+                `${product} receives mixed public discussion online.`
+            ];
+
+        }
+
+        const positiveWords = {
+
+            excellent:10,
+            great:8,
+            good:6,
+            best:10,
+            smooth:7,
+            premium:7,
+            fast:6,
+            quality:6,
+            reliable:7,
+            recommended:8,
+            impressive:8,
+            value:5
+
+        };
+
+        const negativeWords = {
+
+            poor:10,
+            bad:8,
+            worst:10,
+            issue:7,
+            problem:7,
+            complaint:8,
+            damage:9,
+            expensive:5,
+            slow:7,
+            heating:8,
+            mixed:4,
+            failure:9
+
+        };
+
+        let positiveScore = 0;
+        let negativeScore = 0;
+
+        snippets.forEach(text=>{
+
+            const lower =
+                text.toLowerCase();
+
+            for(const word in positiveWords){
+
+                if(lower.includes(word)){
+
+                    positiveScore +=
+                        positiveWords[word];
+                }
+
+            }
+
+            for(const word in negativeWords){
+
+                if(lower.includes(word)){
+
+                    negativeScore +=
+                        negativeWords[word];
+                }
+
+            }
+
+        });
+
+        let score = 50;
+
+        score += positiveScore;
+        score -= negativeScore;
 
         score =
             Math.max(
@@ -98,26 +139,26 @@ export default async function handler(req, res) {
                 Math.min(100,score)
             );
 
-        let summary = "";
+        let summary="";
 
-        if(score>=70){
+        if(score>=75){
 
             summary =
-            `${product} shows mostly positive sentiment from collected online discussion.`;
+            `${product} shows largely positive online sentiment with stronger favorable discussion.`;
 
         }
 
-        else if(score>=40){
+        else if(score>=45){
 
             summary =
-            `${product} receives mixed sentiment online.`;
+            `${product} receives balanced or mixed public opinion online.`;
 
         }
 
         else{
 
             summary =
-            `${product} shows mostly negative sentiment online.`;
+            `${product} shows mostly negative or critical online sentiment.`;
 
         }
 
