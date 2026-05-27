@@ -10,77 +10,87 @@ export default async function handler(req, res) {
 
     try {
 
-        // Wikipedia Search API
-        const url =
-            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(product)}&format=json`;
+        // Web search (Wikipedia snippets)
+        const wikiURL =
+            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(product + " review")}&format=json&origin=*`;
 
-        const response = await fetch(url);
+        const wikiRes = await fetch(wikiURL);
+        const wikiData = await wikiRes.json();
 
-        const data = await response.json();
-
-        let collected = [];
+        let snippets = [];
 
         if (
-            data.query &&
-            data.query.search
+            wikiData.query &&
+            wikiData.query.search
         ) {
 
-            collected =
-                data.query.search
+            snippets =
+                wikiData.query.search
                 .slice(0,5)
                 .map(item =>
-                    item.snippet
-                        .replace(/<[^>]*>/g,"")
+                    item.snippet.replace(/<[^>]*>/g,'')
                 );
         }
 
-        if(collected.length===0){
+        if(snippets.length===0){
 
-            collected = [
-                `${product} has limited online information.`,
-                `${product} receives mixed discussion online.`
+            snippets = [
+                `${product} has limited review information online`
             ];
         }
 
-        const positiveWords = [
-            "good",
-            "best",
-            "excellent",
-            "popular",
-            "quality",
-            "fast",
-            "success",
-            "positive"
-        ];
+        const combined =
+            snippets.join(". ");
 
-        const negativeWords = [
-            "bad",
-            "poor",
-            "problem",
-            "issue",
-            "negative",
-            "damage",
-            "failure"
-        ];
+        // HuggingFace AI sentiment
+        const hfResponse =
+            await fetch(
+                "https://api-inference.huggingface.co/models/cardiffnlp/twitter-roberta-base-sentiment",
+                {
+                    method:"POST",
+                    headers:{
+                        "Authorization":"Bearer YOUR_HF_TOKEN",
+                        "Content-Type":"application/json"
+                    },
+                    body:JSON.stringify({
+                        inputs:combined
+                    })
+                }
+            );
+
+        const hfData =
+            await hfResponse.json();
 
         let score = 50;
 
-        collected.forEach(text=>{
+        if(Array.isArray(hfData)){
 
-            const lower =
-                text.toLowerCase();
+            const sentiments =
+                hfData[0];
 
-            positiveWords.forEach(word=>{
-                if(lower.includes(word))
-                    score += 5;
+            sentiments.forEach(s=>{
+
+                if(
+                    s.label.includes("POS")
+                ){
+                    score +=
+                        Math.round(
+                            s.score * 50
+                        );
+                }
+
+                if(
+                    s.label.includes("NEG")
+                ){
+                    score -=
+                        Math.round(
+                            s.score * 50
+                        );
+                }
+
             });
 
-            negativeWords.forEach(word=>{
-                if(lower.includes(word))
-                    score -= 5;
-            });
-
-        });
+        }
 
         score =
             Math.max(
@@ -88,26 +98,26 @@ export default async function handler(req, res) {
                 Math.min(100,score)
             );
 
-        let summary="";
+        let summary = "";
 
         if(score>=70){
 
-            summary=
-            `${product} shows positive online sentiment.`;
+            summary =
+            `${product} shows mostly positive sentiment from collected online discussion.`;
 
         }
 
         else if(score>=40){
 
-            summary=
-            `${product} receives mixed public discussion.`;
+            summary =
+            `${product} receives mixed sentiment online.`;
 
         }
 
         else{
 
-            summary=
-            `${product} shows mostly negative discussion online.`;
+            summary =
+            `${product} shows mostly negative sentiment online.`;
 
         }
 
@@ -116,7 +126,7 @@ export default async function handler(req, res) {
             product,
             score,
             summary,
-            reviews: collected
+            reviews: snippets
 
         });
 
