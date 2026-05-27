@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Review Analyzer</title>
+
+<style>
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Segoe UI,sans-serif;
+}
+
+body{
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:linear-gradient(135deg,#0f172a,#1e293b);
+    padding:20px;
+}
+
+.container{
+    width:100%;
+    max-width:800px;
+    background:rgba(255,255,255,0.08);
+    backdrop-filter:blur(15px);
+    border:1px solid rgba(255,255,255,0.1);
+    border-radius:25px;
+    padding:35px;
+    color:white;
+    box-shadow:0 8px 35px rgba(0,0,0,.35);
+}
+
+h1{
+    text-align:center;
+    margin-bottom:10px;
+    font-size:2rem;
+}
+
+.subtitle{
+    text-align:center;
+    color:#cbd5e1;
+    margin-bottom:25px;
+}
+
+.search-box{
+    display:flex;
+    gap:10px;
+}
+
+input{
+    flex:1;
+    padding:16px;
+    border:none;
+    border-radius:15px;
+    font-size:16px;
+    outline:none;
+}
+
+button{
+    border:none;
+    background:#3b82f6;
+    color:white;
+    padding:16px 25px;
+    border-radius:15px;
+    cursor:pointer;
+    font-size:16px;
+    transition:.3s;
+}
+
+button:hover{
+    background:#2563eb;
+    transform:translateY(-2px);
+}
+
+.loader{
+    display:none;
+    margin-top:25px;
+    text-align:center;
+    color:#93c5fd;
+}
+
+.results{
+    display:none;
+    margin-top:30px;
+}
+
+.card{
+    background:rgba(255,255,255,0.06);
+    border-radius:18px;
+    padding:20px;
+    margin-top:18px;
+}
+
+.scorebar{
+    width:100%;
+    height:24px;
+    background:#334155;
+    border-radius:20px;
+    overflow:hidden;
+    margin-top:15px;
+}
+
+.fill{
+    width:0%;
+    height:100%;
+    transition:1.2s;
+    background:#22c55e;
+}
+
+.review{
+    background:rgba(255,255,255,0.05);
+    padding:12px;
+    border-left:4px solid #3b82f6;
+    margin-top:10px;
+    border-radius:10px;
+}
+
+.summary{
+    margin-top:12px;
+    line-height:1.7;
+    color:#e2e8f0;
+}
+
+@media(max-width:650px){
+
+.search-box{
+    flex-direction:column;
+}
+
+button{
+    width:100%;
+}
+
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<h1>AI Review Analyzer</h1>
+
+<p class="subtitle">
+Real internet-based product opinion analysis
+</p>
+
+<div class="search-box">
+<input
+type="text"
+id="productInput"
+placeholder="Enter product name..."
+>
+
+<button onclick="analyzeReviews()">
+Analyze
+</button>
+</div>
+
+<div class="loader" id="loader">
+Searching internet sources...<br>
+Collecting opinions...<br>
+Running AI analysis...
+</div>
+
+<div class="results" id="results">
+
+<div class="card">
+<h2 id="productTitle"></h2>
+
+<p style="margin-top:10px;">
+AI Sentiment Score:
+<strong id="scoreText">0</strong>/100
+</p>
+
+<div class="scorebar">
+<div class="fill" id="fillBar"></div>
+</div>
+
+<div class="summary" id="summary">
+</div>
+</div>
+
+<div class="card">
+<h3>Collected Opinions</h3>
+<div id="reviewsContainer"></div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+async function analyzeReviews(){
+
+    const product =
+        document.getElementById("productInput").value.trim();
+
+    if(!product){
+        alert("Please enter product name");
+        return;
+    }
+
+    const loader =
+        document.getElementById("loader");
+
+    const results =
+        document.getElementById("results");
+
+    loader.style.display="block";
+    results.style.display="none";
+
+    try{
+
+        const response =
+            await fetch(
+                `/api/analyze?product=${encodeURIComponent(product)}`
+            );
+
+        const data =
+            await response.json();
+
+        loader.style.display="none";
+        results.style.display="block";
+
+        document.getElementById(
+            "productTitle"
+        ).innerText =
+            data.product;
+
+        document.getElementById(
+            "scoreText"
+        ).innerText =
+            data.score;
+
+        document.getElementById(
+            "summary"
+        ).innerText =
+            data.summary;
+
+        const fill =
+            document.getElementById("fillBar");
+
+        fill.style.width =
+            data.score + "%";
+
+        fill.style.background =
+            data.score>=70
+            ? "#22c55e"
+            : data.score>=40
+            ? "#f59e0b"
+            : "#ef4444";
+
+        const container =
+            document.getElementById(
+                "reviewsContainer"
+            );
+
+        container.innerHTML="";
+
+        data.reviews.forEach(review=>{
+
+            const div =
+                document.createElement("div");
+
+            div.className="review";
+            div.innerText=review;
+
+            container.appendChild(div);
+
+        });
+
+    }
+
+    catch(error){
+
+        loader.style.display="none";
+
+        alert(
+            "Unable to fetch analysis."
+        );
+
+        console.log(error);
+
+    }
+
+}
+
+</script>
+
+</body>
+</html>

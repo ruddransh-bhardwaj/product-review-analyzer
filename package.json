@@ -1,0 +1,11 @@
+{
+  "name": "ai-review-analyzer",
+  "version": "1.0.0",
+  "description": "AI Product Review Analyzer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {}
+}
