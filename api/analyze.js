@@ -10,155 +10,124 @@ export default async function handler(req, res) {
 
     try {
 
-        // DuckDuckGo JSON API
+        // Stable Wikipedia search
         const url =
-            `https://api.duckduckgo.com/?q=${encodeURIComponent(product + " reviews pros cons")}&format=json&no_html=1`;
+            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(product + " review")}&format=json&origin=*`;
 
-        const response =
-            await fetch(url);
+        const response = await fetch(url, {
+            headers: {
+                "User-Agent": "Mozilla/5.0"
+            }
+        });
 
-        const data =
-            await response.json();
+        const data = await response.json();
 
         let snippets = [];
 
-        if(data.AbstractText){
-            snippets.push(data.AbstractText);
+        if (
+            data.query &&
+            data.query.search
+        ) {
+
+            snippets =
+                data.query.search
+                .slice(0, 6)
+                .map(item =>
+                    item.snippet
+                        .replace(/<[^>]*>/g, "")
+                );
         }
 
-        if(data.RelatedTopics){
-
-            data.RelatedTopics.forEach(item=>{
-
-                if(item.Text){
-                    snippets.push(item.Text);
-                }
-
-                if(item.Topics){
-
-                    item.Topics.forEach(t=>{
-
-                        if(t.Text){
-                            snippets.push(t.Text);
-                        }
-
-                    });
-
-                }
-
-            });
-
-        }
-
-        snippets =
-            snippets
-            .filter(Boolean)
-            .slice(0,8);
-
-        if(snippets.length===0){
+        // Safe fallback
+        if (snippets.length === 0) {
 
             snippets = [
-                `${product} has limited online review information available.`,
-                `${product} receives mixed public discussion online.`
+                `${product} has limited online discussion.`,
+                `${product} has mixed available information.`
             ];
-
         }
 
-        const positiveWords = {
-
-            excellent:10,
-            great:8,
-            good:6,
-            best:10,
-            smooth:7,
-            premium:7,
-            fast:6,
-            quality:6,
-            reliable:7,
-            recommended:8,
-            impressive:8,
-            value:5
-
+        // Better weighted sentiment
+        const positive = {
+            good: 5,
+            excellent: 9,
+            great: 8,
+            best: 10,
+            fast: 5,
+            premium: 6,
+            reliable: 7,
+            smooth: 5,
+            quality: 6,
+            recommended: 7,
+            success: 6,
+            popular: 4
         };
 
-        const negativeWords = {
-
-            poor:10,
-            bad:8,
-            worst:10,
-            issue:7,
-            problem:7,
-            complaint:8,
-            damage:9,
-            expensive:5,
-            slow:7,
-            heating:8,
-            mixed:4,
-            failure:9
-
+        const negative = {
+            bad: 7,
+            poor: 8,
+            issue: 7,
+            problem: 7,
+            complaint: 8,
+            expensive: 4,
+            damage: 9,
+            slow: 6,
+            failure: 9,
+            worst: 10,
+            heating: 8
         };
 
-        let positiveScore = 0;
-        let negativeScore = 0;
+        let pos = 0;
+        let neg = 0;
 
-        snippets.forEach(text=>{
+        snippets.forEach(text => {
 
             const lower =
                 text.toLowerCase();
 
-            for(const word in positiveWords){
-
-                if(lower.includes(word)){
-
-                    positiveScore +=
-                        positiveWords[word];
+            for (let word in positive) {
+                if (lower.includes(word)) {
+                    pos += positive[word];
                 }
-
             }
 
-            for(const word in negativeWords){
-
-                if(lower.includes(word)){
-
-                    negativeScore +=
-                        negativeWords[word];
+            for (let word in negative) {
+                if (lower.includes(word)) {
+                    neg += negative[word];
                 }
-
             }
 
         });
 
-        let score = 50;
-
-        score += positiveScore;
-        score -= negativeScore;
+        let score =
+            50 + pos - neg;
 
         score =
             Math.max(
                 0,
-                Math.min(100,score)
+                Math.min(100, score)
             );
 
-        let summary="";
+        let summary = "";
 
-        if(score>=75){
+        if(score >= 75){
 
             summary =
-            `${product} shows largely positive online sentiment with stronger favorable discussion.`;
+            `${product} shows mostly positive online sentiment.`;
 
         }
 
-        else if(score>=45){
+        else if(score >= 45){
 
             summary =
-            `${product} receives balanced or mixed public opinion online.`;
+            `${product} receives mixed online discussion.`;
 
         }
 
         else{
 
             summary =
-            `${product} shows mostly negative or critical online sentiment.`;
+            `${product} shows mostly negative sentiment online.`;
 
         }
 
@@ -176,7 +145,7 @@ export default async function handler(req, res) {
     catch(error){
 
         return res.status(500).json({
-            error:error.message
+            error: error.message
         });
 
     }
