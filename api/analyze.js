@@ -10,93 +10,74 @@ export default async function handler(req, res) {
 
     try {
 
-        // DuckDuckGo Instant Answer API
+        // Wikipedia Search API
         const url =
-            `https://api.duckduckgo.com/?q=${encodeURIComponent(product + " reviews opinions")}&format=json&no_html=1`;
+            `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(product)}&format=json`;
 
         const response = await fetch(url);
+
         const data = await response.json();
 
         let collected = [];
 
-        // Collect related text
-        if (data.AbstractText) {
-            collected.push(data.AbstractText);
+        if (
+            data.query &&
+            data.query.search
+        ) {
+
+            collected =
+                data.query.search
+                .slice(0,5)
+                .map(item =>
+                    item.snippet
+                        .replace(/<[^>]*>/g,"")
+                );
         }
 
-        if (data.RelatedTopics) {
-
-            data.RelatedTopics.forEach(item => {
-
-                if (item.Text) {
-                    collected.push(item.Text);
-                }
-
-                if (item.Topics) {
-                    item.Topics.forEach(t => {
-                        if (t.Text) {
-                            collected.push(t.Text);
-                        }
-                    });
-                }
-
-            });
-
-        }
-
-        // Fallback
-        if (collected.length === 0) {
+        if(collected.length===0){
 
             collected = [
-                `${product} has limited public review information online.`,
-                `${product} shows mixed public discussion.`
+                `${product} has limited online information.`,
+                `${product} receives mixed discussion online.`
             ];
-
         }
-
-        collected = collected.slice(0,5);
 
         const positiveWords = [
             "good",
-            "great",
-            "excellent",
             "best",
-            "love",
-            "fast",
+            "excellent",
+            "popular",
             "quality",
-            "positive",
-            "recommended",
-            "smooth",
-            "impressive"
+            "fast",
+            "success",
+            "positive"
         ];
 
         const negativeWords = [
             "bad",
             "poor",
-            "worst",
-            "issue",
             "problem",
+            "issue",
             "negative",
-            "complaint",
-            "slow",
             "damage",
-            "expensive"
+            "failure"
         ];
 
         let score = 50;
 
-        collected.forEach(text => {
+        collected.forEach(text=>{
 
-            const lower = text.toLowerCase();
+            const lower =
+                text.toLowerCase();
 
-            positiveWords.forEach(word => {
+            positiveWords.forEach(word=>{
                 if(lower.includes(word))
-                    score += 6;
+                    score += 5;
             });
 
-            negativeWords.forEach(word => {
+            negativeWords.forEach(word=>{
                 if(lower.includes(word))
-                    score -= 6;
+                    score -= 5;
             });
 
         });
@@ -104,29 +85,29 @@ export default async function handler(req, res) {
         score =
             Math.max(
                 0,
-                Math.min(100, score)
+                Math.min(100,score)
             );
 
-        let summary = "";
+        let summary="";
 
-        if(score >= 70){
+        if(score>=70){
 
-            summary =
-            `${product} shows mostly positive online discussion and favorable public opinion.`;
+            summary=
+            `${product} shows positive online sentiment.`;
 
         }
 
-        else if(score >= 40){
+        else if(score>=40){
 
-            summary =
-            `${product} receives mixed online feedback with both positive and negative discussion.`;
+            summary=
+            `${product} receives mixed public discussion.`;
 
         }
 
         else{
 
-            summary =
-            `${product} shows mostly negative sentiment based on available online discussion.`;
+            summary=
+            `${product} shows mostly negative discussion online.`;
 
         }
 
@@ -144,7 +125,7 @@ export default async function handler(req, res) {
     catch(error){
 
         return res.status(500).json({
-            error: "Analysis failed"
+            error:error.message
         });
 
     }
