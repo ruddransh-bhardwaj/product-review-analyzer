@@ -10,44 +10,55 @@ export default async function handler(req, res) {
 
     try {
 
-        // Simulated internet collection
-        // Replaceable with real APIs later
-
-        const reviews = [
-
-            `${product} has strong performance and good quality.`,
-
-            `Many users say ${product} gives good value for money.`,
-
-            `${product} receives mixed opinions about battery and durability.`,
-
-            `Some buyers recommend ${product} while others mention issues.`
-
+        // Simulate different internet opinions
+        const opinionBank = [
+            "excellent camera and performance",
+            "battery life is poor",
+            "good value for money",
+            "premium build quality",
+            "overpriced compared to competitors",
+            "heating issues reported",
+            "fast and reliable",
+            "average experience overall",
+            "highly recommended by users",
+            "customer support complaints",
+            "smooth performance",
+            "durability concerns",
+            "great design and display",
+            "mixed online feedback"
         ];
 
-        // Positive / negative word analysis
+        // Randomize reviews
+        const shuffled =
+            opinionBank.sort(() => 0.5 - Math.random());
+
+        const selected =
+            shuffled.slice(0, 5);
+
+        const reviews =
+            selected.map(r =>
+                `${product}: ${r}`
+            );
 
         const positiveWords = [
-            "good",
-            "great",
             "excellent",
-            "strong",
-            "recommend",
-            "best",
-            "love",
-            "quality",
-            "value"
+            "good",
+            "premium",
+            "fast",
+            "great",
+            "recommended",
+            "smooth",
+            "reliable"
         ];
 
         const negativeWords = [
-            "bad",
             "poor",
-            "issue",
-            "problem",
-            "mixed",
-            "terrible",
-            "worst",
-            "damage"
+            "overpriced",
+            "issues",
+            "complaints",
+            "concerns",
+            "average",
+            "mixed"
         ];
 
         let score = 50;
@@ -57,46 +68,39 @@ export default async function handler(req, res) {
             const lower = review.toLowerCase();
 
             positiveWords.forEach(word => {
-                if(lower.includes(word)){
-                    score += 5;
-                }
+                if(lower.includes(word))
+                    score += 8;
             });
 
             negativeWords.forEach(word => {
-                if(lower.includes(word)){
-                    score -= 5;
-                }
+                if(lower.includes(word))
+                    score -= 8;
             });
 
         });
 
-        if(score > 100) score = 100;
-        if(score < 0) score = 0;
+        score = Math.max(0, Math.min(100, score));
 
         let summary = "";
 
         if(score >= 70){
             summary =
-            `${product} shows mostly positive public sentiment. Users frequently appreciate overall performance and quality.`;
+            `${product} shows largely positive sentiment online with several favorable opinions.`;
         }
-
         else if(score >= 40){
             summary =
-            `${product} receives mixed opinions online. Buyers mention both strengths and weaknesses.`;
+            `${product} receives mixed feedback with both praise and criticism.`;
         }
-
         else{
             summary =
-            `${product} shows largely negative sentiment with recurring criticism from users.`;
+            `${product} has mostly negative sentiment and repeated complaints.`;
         }
 
         return res.status(200).json({
-
-            product: product,
-            score: score,
-            summary: summary,
-            reviews: reviews
-
+            product,
+            score,
+            summary,
+            reviews
         });
 
     }
